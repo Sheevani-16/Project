@@ -1,5 +1,6 @@
 package org.app.userservice.service;
 import org.app.notificationservice.dto.NotificationRequestDto;
+import org.app.notificationservice.dto.NotificationResponseDto;
 import org.app.userservice.Config.WebClientConfig;
 import org.app.userservice.dto.UserNotificationResponseDto;
 import org.app.userservice.dto.UserRequestdto;
@@ -22,7 +23,7 @@ public class UserServiceImpl implements UserService {
     private WebClientConfig webClientConfig;
     private RestTemplate restTemplate;
 
-    public UserServiceImpl(UserRepository userRepository, WebClientConfig webClientConfig,RestTemplate restTemplate) {
+    public UserServiceImpl(UserRepository userRepository, WebClientConfig webClientConfig, RestTemplate restTemplate) {
         this.userRepository = userRepository;
         this.webClientConfig = webClientConfig;
         this.restTemplate = restTemplate;
@@ -140,7 +141,6 @@ public class UserServiceImpl implements UserService {
         userRepository.deleteById(id);
     }
 
-    @Override
     public UserNotificationResponseDto createUserAndNotify(UserRequestdto request) {
         User user = new User();
         user.setFirstName(request.getFirstName());
@@ -153,23 +153,26 @@ public class UserServiceImpl implements UserService {
 
         user = userRepository.save(user);
 
-        NotificationRequestDto notificationRequestDto = new NotificationRequestDto(
+        NotificationRequestDto notificationRequest = new NotificationRequestDto(
                 user.getFirstName(),
                 user.getEmail()
         );
 
-        String notificationStatus;
-
+        NotificationResponseDto notificationResponse;
         try {
-            restTemplate.postForEntity(
-                    "http://notification-service/notifications",
-                    notificationRequestDto,
-                    String.class
+            notificationResponse = restTemplate.postForObject(
+                    "http://notification-service/notifications", // use service name if load-balanced
+                    notificationRequest,
+                    NotificationResponseDto.class
             );
-            notificationStatus = "Notification sent successfully";
         } catch (Exception e) {
-            notificationStatus = "Notification failed: " + e.getMessage();
+            notificationResponse = new NotificationResponseDto(
+                    "FAILED",
+                    "Notification service call failed: " + e.getMessage()
+            );
         }
+
+        String notificationStatus = notificationResponse.getStatus() + ": " + notificationResponse.getMessage();
 
         UserResponsedto userResponse = new UserResponsedto(
                 user.getId(),
@@ -183,6 +186,7 @@ public class UserServiceImpl implements UserService {
         );
         return new UserNotificationResponseDto(userResponse, notificationStatus);
     }
+}
 //    @Override
 //    public UserResponsedto createUserAndNotify(UserRequestdto userRequestdto) {
 //
@@ -224,4 +228,3 @@ public class UserServiceImpl implements UserService {
 //                user.getZipCode()
 //        );
 //    }
-}
