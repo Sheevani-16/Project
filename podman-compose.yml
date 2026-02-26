@@ -1,0 +1,62 @@
+services:
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: project_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: api_db
+    ports:
+      - "5433:5432"
+
+  consul:
+    image: hashicorp/consul:latest
+    container_name: project_consul
+    command: "agent -dev -client=0.0.0.0"
+    ports:
+      - "8500:8500"
+
+  user-service:
+    image: eclipse-temurin:21-jdk-alpine
+    container_name: user_service
+    command: ["java","-jar","/app/user-service-0.0.1-SNAPSHOT.jar"]
+    volumes:
+      - ./user-service/target/user-service-0.0.1-SNAPSHOT.jar:/app/user-service-0.0.1-SNAPSHOT.jar
+    environment:
+      - SERVER_PORT=8081
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://project_db:5432/api_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=root
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres
+      - consul
+
+  notification-service:
+    image: eclipse-temurin:21-jdk-alpine
+    container_name: notification_service
+    command: ["java","-jar","/app/notification-service-0.0.1-SNAPSHOT-exec.jar"]
+    volumes:
+      - ./notification-service/target/notification-service-0.0.1-SNAPSHOT-exec.jar:/app/notification-service-0.0.1-SNAPSHOT-exec.jar
+    environment:
+      - SERVER_PORT=8082
+    ports:
+      - "8082:8082"
+    depends_on:
+      - consul
+
+  api-gateway:
+    image: eclipse-temurin:21-jdk-alpine
+    container_name: api_gateway
+    command: ["java","-jar","/app/apiGatewayService-0.0.1-SNAPSHOT.jar"]
+    volumes:
+      - ./apiGatewayService/target/apiGatewayService-0.0.1-SNAPSHOT.jar:/app/apiGatewayService-0.0.1-SNAPSHOT.jar
+    environment:
+      - SERVER_PORT=8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      - user-service
+      - notification-service

@@ -44,6 +44,7 @@
     <modules>
         <module>user-service</module>
         <module>notification-service</module>
+        <module>apiGatewayService</module>
     </modules>
 
 </project>
