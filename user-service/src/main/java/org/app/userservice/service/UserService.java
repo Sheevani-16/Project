@@ -1,4 +1,6 @@
 package org.app.userservice.service;
+import org.app.notificationservice.dto.NotificationRequestDto;
+import org.app.notificationservice.dto.NotificationResponseDto;
 import org.app.userservice.dto.UserNotificationResponseDto;
 import org.app.userservice.dto.UserRequestdto;
 import org.app.userservice.dto.UserResponsedto;
@@ -12,6 +14,5 @@ public interface UserService {
     UserResponsedto getUserById(Long id);
     List<UserResponsedto> getAllUsers();
     void deleteUser(Long id);
-//  UserResponsedto createUserAndNotify(UserRequestdto userRequestdto);
-    UserNotificationResponseDto createUserAndNotify(UserRequestdto request);
+     UserNotificationResponseDto createUserAndNotify(UserRequestdto request);
 }

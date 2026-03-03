@@ -9,7 +9,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Data
 public class NotificationEvent {
-
     private String userID;
     private  String email;
     private String phoneNumber;

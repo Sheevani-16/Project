@@ -1,7 +1,8 @@
 package org.app.userservice.service;
+import org.app.notificationservice.dto.NotificationEvent;
 import org.app.notificationservice.dto.NotificationRequestDto;
 import org.app.notificationservice.dto.NotificationResponseDto;
-import org.app.userservice.Config.WebClientConfig;
+import org.app.notificationservice.dto.NotificationType;
 import org.app.userservice.dto.UserNotificationResponseDto;
 import org.app.userservice.dto.UserRequestdto;
 import org.app.userservice.dto.UserResponsedto;
@@ -9,24 +10,23 @@ import org.app.userservice.Exception.BadRequestException;
 import org.app.userservice.Exception.ResourceNotFoundException;
 import org.app.userservice.model.User;
 import org.app.userservice.repository.UserRepository;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-
 @Service
 public class UserServiceImpl implements UserService {
 
     private UserRepository userRepository;
-    private WebClientConfig webClientConfig;
     private RestTemplate restTemplate;
+    private NotificationEventPublisher notificationEventPublisher;
 
-    public UserServiceImpl(UserRepository userRepository, WebClientConfig webClientConfig, RestTemplate restTemplate) {
+    public UserServiceImpl(UserRepository userRepository, NotificationEventPublisher notificationEventPublisher) {
         this.userRepository = userRepository;
-        this.webClientConfig = webClientConfig;
-        this.restTemplate = restTemplate;
+        this.notificationEventPublisher = notificationEventPublisher;
     }
 
     @Override
@@ -142,6 +142,7 @@ public class UserServiceImpl implements UserService {
     }
 
     public UserNotificationResponseDto createUserAndNotify(UserRequestdto request) {
+
         User user = new User();
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
@@ -153,26 +154,16 @@ public class UserServiceImpl implements UserService {
 
         user = userRepository.save(user);
 
-        NotificationRequestDto notificationRequest = new NotificationRequestDto(
-                user.getFirstName(),
-                user.getEmail()
+        // Publish Kafka event
+        NotificationEvent event = new NotificationEvent(
+                user.getId().toString(),
+                user.getEmail(),
+                user.getMobileNumber() != null ? user.getMobileNumber().toString() : null,
+                "Hello " + user.getFirstName() + ", your account has been created successfully.",
+                NotificationType.EMAIL
         );
 
-        NotificationResponseDto notificationResponse;
-        try {
-            notificationResponse = restTemplate.postForObject(
-                    "http://notification-service/notifications", // use service name if load-balanced
-                    notificationRequest,
-                    NotificationResponseDto.class
-            );
-        } catch (Exception e) {
-            notificationResponse = new NotificationResponseDto(
-                    "FAILED",
-                    "Notification service call failed: " + e.getMessage()
-            );
-        }
-
-        String notificationStatus = notificationResponse.getStatus() + ": " + notificationResponse.getMessage();
+        notificationEventPublisher.sendNotification(event);
 
         UserResponsedto userResponse = new UserResponsedto(
                 user.getId(),
@@ -184,47 +175,8 @@ public class UserServiceImpl implements UserService {
                 user.getState(),
                 user.getZipCode()
         );
-        return new UserNotificationResponseDto(userResponse, notificationStatus);
+
+        // Since notification is async now, status is "QUEUED"
+        return new UserNotificationResponseDto(userResponse, "QUEUED: Notification event published to Kafka");
     }
 }
-//    @Override
-//    public UserResponsedto createUserAndNotify(UserRequestdto userRequestdto) {
-//
-//        User user = new User();
-//        user.setFirstName(userRequestdto.getFirstName());
-//        user.setLastName(userRequestdto.getLastName());
-//        user.setEmail(userRequestdto.getEmail());
-//        user.setMobileNumber(userRequestdto.getMobileNumber());
-//        user.setCity(userRequestdto.getCity());
-//        user.setState(userRequestdto.getState());
-//        user.setZipCode(userRequestdto.getZipCode());
-//
-//        user = userRepository.save(user);
-//
-//        WebClient webClient = WebClient.create("http://notification-service");
-//
-//        NotificationRequestDto payload =
-//                new NotificationRequestDto(user.getFirstName(), user.getEmail());
-//
-//        try {
-//            webClient.post()
-//                    .uri("/notifications")
-//                    .bodyValue(payload)
-//                    .retrieve()
-//                    .bodyToMono(String.class)
-//                    .block();
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//
-//        return new UserResponsedto(
-//                user.getId(),
-//                user.getFirstName(),
-//                user.getLastName(),
-//                user.getMobileNumber(),
-//                user.getEmail(),
-//                user.getCity(),
-//                user.getState(),
-//                user.getZipCode()
-//        );
-//    }

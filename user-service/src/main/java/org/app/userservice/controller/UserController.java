@@ -40,13 +40,9 @@ public class UserController {
         return "User deleted successfully";
     }
     @PostMapping("/notify")
-    public ResponseEntity<UserNotificationResponseDto> createUserAndNotify(@RequestBody UserRequestdto request) {
-    UserNotificationResponseDto response = userService.createUserAndNotify(request);
-    return ResponseEntity.status(HttpStatus.CREATED).body(response);
-}
-//    @PostMapping("/notify")
-//    public ResponseEntity<UserResponsedto>createUserAndNotify(@RequestBody UserRequestdto userRequestdto) {
-//        UserResponsedto response = userService.createUserAndNotify(userRequestdto);
-//        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-//    }
+    public UserNotificationResponseDto createUserAndNotify(
+            @RequestBody UserRequestdto request) {
+
+        return userService.createUserAndNotify(request);
+    }
 }
